@@ -6,13 +6,27 @@
 
 ```bash
 pip install -r requirements.txt
-export GROK_API_KEY="your_api_key_here"  # или через --api-key
 ```
+
+### Настройка
+
+Создайте файл `.env` в корне проекта со следующими параметрами:
+
+```
+GROK_API_KEY=your_api_key_here
+GROK_API_URL=https://api.x.ai/v1/chat/completions
+GROK_MODEL=grok-4-fast-non-reasoning
+```
+
+> **Примечание:** `GROK_API_URL` и `GROK_MODEL` имеют значения по умолчанию, но их можно переопределить в `.env` файле.
 
 ## Использование
 
 ```bash
+# Базовое использование
 python query_optimizer.py "Key risks in climate reports?"
+
+# Вывод в формате JSON
 python query_optimizer.py "запрос" --json
 ```
 
@@ -28,4 +42,6 @@ python query_optimizer.py "запрос" --json
 - requests
 - sentence-transformers
 - faiss-cpu
+- numpy
+- python-dotenv
 
