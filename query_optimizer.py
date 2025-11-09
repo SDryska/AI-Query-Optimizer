@@ -69,6 +69,10 @@ class GrokAPIClient:
             "max_tokens": config.GROK_API_CONFIG["max_tokens"]
         }
         
+        # Добавляем response_format для json_mode, если поддерживается API
+        if "response_format" in config.GROK_API_CONFIG:
+            payload["response_format"] = config.GROK_API_CONFIG["response_format"]
+        
         try:
             response = requests.post(
                 self.api_url,
@@ -81,19 +85,49 @@ class GrokAPIClient:
             result = response.json()
             content = result["choices"][0]["message"]["content"].strip()
             
-            variants = [
-                line.strip() 
-                for line in content.split("\n") 
-                if line.strip() and not line.strip().startswith("#")
-            ]
-            
-            cleaned_variants = []
-            for variant in variants:
-                variant = variant.lstrip("0123456789.-) ").lstrip("Variant ").lstrip(": ")
-                if variant:
-                    cleaned_variants.append(variant)
-            
-            return cleaned_variants[:num_variants] if cleaned_variants else [query]
+            # Парсинг JSON ответа
+            # При использовании json_mode (response_format) API гарантирует валидный JSON
+            try:
+                # Сначала пытаемся парсить напрямую (json_mode должен вернуть чистый JSON)
+                json_str = content
+                
+                # Fallback: если API все же вернул markdown code block (на случай, если json_mode не поддерживается)
+                if "```json" in content:
+                    start = content.find("```json") + 7
+                    end = content.find("```", start)
+                    if end != -1:
+                        json_str = content[start:end].strip()
+                elif "```" in content and content.startswith("```"):
+                    start = content.find("```") + 3
+                    end = content.find("```", start)
+                    if end != -1:
+                        json_str = content[start:end].strip()
+                
+                # Парсим JSON
+                parsed = json.loads(json_str)
+                variants = parsed.get("variants", [])
+                
+                # Валидация: проверяем, что получили список строк
+                if not isinstance(variants, list):
+                    raise ValueError("JSON должен содержать массив 'variants'")
+                
+                # Фильтруем пустые строки и обрезаем до нужного количества
+                variants = [v.strip() for v in variants if v and isinstance(v, str) and v.strip()]
+                
+                if not variants:
+                    raise ValueError("Не получено ни одного валидного варианта")
+                
+                return variants[:num_variants] if variants else [query]
+                
+            except json.JSONDecodeError as e:
+                error_msg = f"Ошибка парсинга JSON ответа от API: {e}"
+                error_msg += f"\nПолученный контент: {content[:500]}"
+                error_msg += "\n\nУбедитесь, что API поддерживает response_format или проверьте промпт."
+                raise ValueError(error_msg) from e
+            except (KeyError, ValueError) as e:
+                error_msg = f"Ошибка при обработке JSON ответа: {e}"
+                error_msg += f"\nПолученный контент: {content[:500]}"
+                raise ValueError(error_msg) from e
             
         except requests.exceptions.HTTPError as e:
             error_msg = f"Ошибка при вызове Grok API: {e}"

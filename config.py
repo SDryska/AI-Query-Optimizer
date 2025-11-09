@@ -14,6 +14,7 @@ load_dotenv()
 # ============================================================================
 
 # Плейсхолдеры: {num_variants} - количество вариантов, {query} - исходный запрос
+# Примечание: При использовании json_mode (response_format) промпт должен явно указывать на JSON объект
 QUERY_VARIANT_PROMPT_TEMPLATE = """You are an expert in optimizing search queries for RAG systems.
 
 Task: Create {num_variants} semantically diverse variants of the following query that 
@@ -26,9 +27,17 @@ Requirements:
 1. Each variant must preserve the core meaning of the original
 2. Variants should be semantically diverse (different phrasings, synonyms, structures)
 3. Variants should be optimized for vector database search
-4. Output only the variants, one per line, without numbering or additional comments
 
-Variants:"""
+You must respond with a valid JSON object containing a "variants" array with exactly {num_variants} query strings.
+
+JSON format:
+{{
+  "variants": [
+    "variant 1 text",
+    "variant 2 text",
+    "variant 3 text"
+  ]
+}}"""
 
 
 # ============================================================================
@@ -59,7 +68,8 @@ GROK_API_CONFIG = {
     "model": os.getenv("GROK_MODEL", "grok-4-fast-non-reasoning"),
     "temperature": 0.7,    
     "max_tokens": 500,     
-    "api_url": os.getenv("GROK_API_URL", "https://api.x.ai/v1/chat/completions")
+    "api_url": os.getenv("GROK_API_URL", "https://api.x.ai/v1/chat/completions"),
+    "response_format": {"type": "json_object"}  # Включает json_mode для гарантированного JSON вывода
 }
 
 
